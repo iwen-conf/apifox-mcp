@@ -523,8 +523,9 @@ def create_api_endpoint(
         "options": {
             "targetEndpointFolderId": folder_id,
             "targetSchemaFolderId": 0,
-            "endpointOverwriteBehavior": "CREATE_NEW",
-            "schemaOverwriteBehavior": "CREATE_NEW"
+            "endpointOverwriteBehavior": "CREATE_NEW",  # 接口不覆盖，避免意外修改
+            # Schema 使用覆盖策略，避免重复创建相同的 Schema（如 ErrorResponse）,
+            "schemaOverwriteBehavior": "OVERWRITE_EXISTING"
         }
     }
     
