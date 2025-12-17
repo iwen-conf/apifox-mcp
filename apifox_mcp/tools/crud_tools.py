@@ -3,6 +3,17 @@ CRUD 批量生成工具
 =================
 
 根据资源模型自动生成标准 RESTful CRUD 接口。
+
+⚠️ 强制约束 - Schema 公共组件规范：
+========================================
+本模块 **强制** 将所有 Schema 定义为公共组件：
+- 资源模型 → components/schemas/{Resource}
+- 请求体 → components/schemas/Create{Resource}Request
+- 列表响应 → components/schemas/{Resource}ListResponse
+- 错误响应 → components/schemas/ErrorResponse（共享）
+
+所有接口的请求体和响应体都使用 $ref 引用公共组件，
+**绝不允许内联定义**。这确保了 Apifox 中的数据模型可复用、易维护。
 """
 
 import json
@@ -47,8 +58,15 @@ def _get_error_responses(method: str) -> List[Dict]:
     return [STANDARD_ERROR_RESPONSES[c].copy() for c in codes if c in STANDARD_ERROR_RESPONSES]
 
 
-def _build_list_schema(item_schema: Dict, resource_name_cn: str) -> Dict:
-    """构建列表响应 Schema（带分页）"""
+def _build_list_schema(item_schema_or_ref: Dict, resource_name_cn: str) -> Dict:
+    """
+    构建列表响应 Schema（带分页）
+    
+    Args:
+        item_schema_or_ref: 列表项的 Schema 或 $ref 引用
+                           如 {"$ref": "#/components/schemas/User"}
+        resource_name_cn: 资源中文名称
+    """
     return {
         "type": "object",
         "description": f"{resource_name_cn}列表响应",
@@ -56,7 +74,7 @@ def _build_list_schema(item_schema: Dict, resource_name_cn: str) -> Dict:
             "items": {
                 "type": "array",
                 "description": f"{resource_name_cn}列表",
-                "items": item_schema
+                "items": item_schema_or_ref
             },
             "total": {"type": "integer", "description": "总数量"},
             "page": {"type": "integer", "description": "当前页码"},
@@ -222,9 +240,34 @@ def generate_crud_apis(
             desc = f"{description_prefix}\n\n{desc}"
         return desc
     
+    # ============================================================
+    # 收集所有 Schema 到 components
+    # ============================================================
+    components_schemas = {}
+    
+    # 资源主模型（如 User）
+    resource_schema_name = resource_name.capitalize()
+    components_schemas[resource_schema_name] = model_schema
+    
+    # 创建/更新请求模型（如 CreateUserRequest）
+    create_request_schema_name = f"Create{resource_schema_name}Request"
+    components_schemas[create_request_schema_name] = create_schema
+    
+    # 列表响应模型（如 UserListResponse）
+    list_response_schema_name = f"{resource_schema_name}ListResponse"
+    list_schema = _build_list_schema({"$ref": f"#/components/schemas/{resource_schema_name}"}, resource_name_cn)
+    components_schemas[list_response_schema_name] = list_schema
+    
+    # 错误响应模型
+    error_schema_name = "ErrorResponse"
+    components_schemas[error_schema_name] = STANDARD_ERROR_SCHEMA
+    
+    # ============================================================
+    # 构建接口（使用 $ref 引用）
+    # ============================================================
+    
     # 1. LIST - 获取列表
     if "list" in operations:
-        list_schema = _build_list_schema(model_schema, resource_name_cn)
         list_example = _build_list_example(item_example, resource_name_cn)
         
         all_paths.setdefault(base_path, {})
@@ -237,7 +280,7 @@ def generate_crud_apis(
                 {"name": "page", "in": "query", "required": False, "description": "页码", "schema": {"type": "integer", "default": 1}},
                 {"name": "page_size", "in": "query", "required": False, "description": "每页数量", "schema": {"type": "integer", "default": 20}}
             ],
-            "responses": _build_responses(200, "成功", list_schema, list_example, "GET")
+            "responses": _build_responses_with_ref(200, "成功", list_response_schema_name, list_example, "GET", error_schema_name)
         }
         created_apis.append(f"GET {base_path}")
     
@@ -253,7 +296,7 @@ def generate_crud_apis(
             "parameters": [
                 {"name": id_field, "in": "path", "required": True, "description": f"{resource_name_cn}ID", "schema": {"type": id_type}}
             ],
-            "responses": _build_responses(200, "成功", model_schema, item_example, "GET")
+            "responses": _build_responses_with_ref(200, "成功", resource_schema_name, item_example, "GET", error_schema_name)
         }
         created_apis.append(f"GET {detail_path}")
     
@@ -267,9 +310,12 @@ def generate_crud_apis(
             "tags": tags,
             "requestBody": {
                 "required": True,
-                "content": {"application/json": {"schema": create_schema, "example": create_example}}
+                "content": {"application/json": {
+                    "schema": {"$ref": f"#/components/schemas/{create_request_schema_name}"},
+                    "example": create_example
+                }}
             },
-            "responses": _build_responses(201, "创建成功", model_schema, item_example, "POST")
+            "responses": _build_responses_with_ref(201, "创建成功", resource_schema_name, item_example, "POST", error_schema_name)
         }
         created_apis.append(f"POST {base_path}")
     
@@ -287,9 +333,12 @@ def generate_crud_apis(
             ],
             "requestBody": {
                 "required": True,
-                "content": {"application/json": {"schema": create_schema, "example": create_example}}
+                "content": {"application/json": {
+                    "schema": {"$ref": f"#/components/schemas/{create_request_schema_name}"},
+                    "example": create_example
+                }}
             },
-            "responses": _build_responses(200, "更新成功", model_schema, item_example, "PUT")
+            "responses": _build_responses_with_ref(200, "更新成功", resource_schema_name, item_example, "PUT", error_schema_name)
         }
         created_apis.append(f"PUT {detail_path}")
     
@@ -305,15 +354,16 @@ def generate_crud_apis(
             "parameters": [
                 {"name": id_field, "in": "path", "required": True, "description": f"{resource_name_cn}ID", "schema": {"type": id_type}}
             ],
-            "responses": _build_responses(204, "删除成功", None, None, "DELETE")
+            "responses": _build_responses_with_ref(204, "删除成功", None, None, "DELETE", error_schema_name)
         }
         created_apis.append(f"DELETE {detail_path}")
     
-    # 构建 OpenAPI 规范
+    # 构建 OpenAPI 规范（包含 components）
     openapi_spec = {
         "openapi": "3.0.0",
         "info": {"title": f"{resource_name_cn} CRUD API", "version": "1.0.0"},
-        "paths": all_paths
+        "paths": all_paths,
+        "components": {"schemas": components_schemas}
     }
     
     # 导入到 Apifox
@@ -352,11 +402,61 @@ def generate_crud_apis(
 💡 系统已自动添加标准错误响应 (400/401/403/404/500)"""
 
 
-def _build_responses(code: int, name: str, schema: Optional[Dict], example: Optional[Dict], method: str) -> Dict:
-    """构建响应对象（包含成功响应和错误响应）"""
+def _build_responses_with_ref(
+    code: int, 
+    name: str, 
+    schema_name: Optional[str], 
+    example: Optional[Dict], 
+    method: str,
+    error_schema_name: str = "ErrorResponse"
+) -> Dict:
+    """
+    构建响应对象（使用 $ref 引用，包含成功响应和错误响应）
+    
+    Args:
+        code: 成功响应状态码
+        name: 响应名称
+        schema_name: 成功响应的 Schema 名称（用于 $ref 引用）
+        example: 成功响应示例
+        method: HTTP 方法
+        error_schema_name: 错误响应 Schema 名称
+    """
     responses = {}
     
     # 成功响应
+    if schema_name or code == 204:
+        resp = {"description": name}
+        if schema_name:
+            resp["content"] = {
+                "application/json": {
+                    "schema": {"$ref": f"#/components/schemas/{schema_name}"}
+                }
+            }
+            if example:
+                resp["content"]["application/json"]["example"] = example
+        responses[str(code)] = resp
+    
+    # 错误响应（使用 $ref 引用共享的 ErrorResponse）
+    for err_resp in _get_error_responses(method):
+        err_code = str(err_resp["code"])
+        responses[err_code] = {
+            "description": err_resp["name"],
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": f"#/components/schemas/{error_schema_name}"},
+                    "example": err_resp["example"]
+                }
+            }
+        }
+    
+    return responses
+
+
+# 保留旧函数以保持向后兼容
+def _build_responses(code: int, name: str, schema: Optional[Dict], example: Optional[Dict], method: str) -> Dict:
+    """[已废弃] 请使用 _build_responses_with_ref 代替"""
+    responses = {}
+    
     if schema or code == 204:
         resp = {"description": name}
         if schema:
@@ -365,7 +465,6 @@ def _build_responses(code: int, name: str, schema: Optional[Dict], example: Opti
                 resp["content"]["application/json"]["example"] = example
         responses[str(code)] = resp
     
-    # 错误响应
     for err_resp in _get_error_responses(method):
         err_code = str(err_resp["code"])
         responses[err_code] = {

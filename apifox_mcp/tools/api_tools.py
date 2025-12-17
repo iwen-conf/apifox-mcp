@@ -8,6 +8,8 @@ API 接口管理工具
 1. 所有接口必须有中文描述
 2. 所有 Schema 字段必须有 description 说明
 3. 必须提供成功响应 (2xx) 和错误响应 (4xx/5xx)
+4. 【重要】所有 Schema 必须定义为公共组件（components/schemas），
+   禁止内联定义！本模块会自动将传入的 schema 提取为公共组件并使用 $ref 引用。
 """
 
 import json
