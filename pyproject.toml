@@ -1,0 +1,41 @@
+[project]
+name = "apifox-mcp"
+version = "0.1.0"
+description = "A Model Context Protocol (MCP) server for managing Apifox projects through LLMs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Apifox MCP Contributors" }
+]
+keywords = ["mcp", "apifox", "api", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "requests>=2.31.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/iwen-conf/apifox-mcp"
+Repository = "https://github.com/iwen-conf/apifox-mcp"
+Issues = "https://github.com/iwen-conf/apifox-mcp/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["apifox_mcp"]

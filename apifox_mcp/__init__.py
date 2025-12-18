@@ -7,5 +7,5 @@ Apifox MCP 服务器包
 
 from .config import mcp, logger
 
-__version__ = "2.0.0"
+__version__ = "0.1.0"
 __all__ = ["mcp", "logger"]
