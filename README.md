@@ -1,6 +1,7 @@
 # Apifox MCP Server
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![uv](https://img.shields.io/badge/uv-Compatible-purple?logo=python&logoColor=white)](https://docs.astral.sh/uv/)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-green?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyek0xMiAyMGMtNC40MSAwLTgtMy41OS04LThzMy41OS04IDgtOCA4IDMuNTkgOCA4LTMuNTkgOC04IDh6Ii8+PC9zdmc+)](https://modelcontextprotocol.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Apifox](https://img.shields.io/badge/Apifox-Integration-orange?logo=swagger&logoColor=white)](https://apifox.com/)
@@ -43,6 +44,18 @@
     ```
 
 2.  **创建并激活虚拟环境 (可选但推荐)**
+
+    **使用 uv**
+    ```bash
+    uv venv
+    # 激活虚拟环境
+    # Windows
+    .venv\Scripts\activate
+    # macOS/Linux
+    source .venv/bin/activate
+    ```
+
+    **使用 venv**
     ```bash
     python -m venv .venv
     # Windows
@@ -52,9 +65,27 @@
     ```
 
 3.  **安装依赖**
-    本项目依赖 `mcp` 和 `requests` 库。
+
+    本项目支持使用 [uv](https://docs.astral.sh/uv/) (推荐用于本地开发) 或 pip 来安装依赖。
+
+    **使用 uv (推荐，更快的本地开发)**
+    ```bash
+    # 安装 uv (如果尚未安装)
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # 安装依赖
+    uv sync
+    
+    # 运行 MCP server
+    uv run python -m apifox_mcp.main
+    ```
+
+    **使用 pip (传统方式)**
     ```bash
     pip install mcp[cli] requests
+    
+    # 运行 MCP server
+    python -m apifox_mcp.main
     ```
 
 ## ⚙️ 配置
@@ -116,7 +147,7 @@ docker load -i apifox-mcp.tar
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-添加以下内容：
+#### 方式一：使用 Docker (推荐用于生产环境)
 
 ```json
 {
@@ -140,7 +171,33 @@ docker load -i apifox-mcp.tar
 }
 ```
 
-> **注意**: 请将 `your_token_here` 和 `your_project_id_here` 替换为你的实际凭证。
+#### 方式二：使用 uv (推荐用于本地开发)
+
+```json
+{
+  "mcpServers": {
+    "apifox": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/path/to/apifox-mcp",
+        "python",
+        "-m",
+        "apifox_mcp.main"
+      ],
+      "env": {
+        "APIFOX_TOKEN": "your_token_here",
+        "APIFOX_PROJECT_ID": "your_project_id_here"
+      }
+    }
+  }
+}
+```
+
+> **注意**: 
+> - 请将 `your_token_here` 和 `your_project_id_here` 替换为你的实际凭证
+> - 使用 uv 方式时，请将 `/path/to/apifox-mcp` 替换为实际的项目路径
 
 ### 3. 命令行运行 (可选)
 

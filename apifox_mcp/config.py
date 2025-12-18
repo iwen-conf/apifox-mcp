@@ -30,10 +30,14 @@ mcp = FastMCP(
 # ============================================================
 APIFOX_TOKEN = os.getenv("APIFOX_TOKEN")  # Apifox 开放 API 令牌
 PROJECT_ID = os.getenv("APIFOX_PROJECT_ID")  # 目标项目 ID
+APIFOX_BASE_URL = os.getenv("APIFOX_BASE_URL")
+
+if (APIFOX_BASE_URL is None):
+    APIFOX_BASE_URL = "https://api.apifox.com"
 
 # Apifox API 基础地址
-APIFOX_PUBLIC_API = "https://api.apifox.com/v1"
-APIFOX_INTERNAL_API = "https://api.apifox.com/api/v1"
+APIFOX_PUBLIC_API = APIFOX_BASE_URL + "/v1"
+APIFOX_INTERNAL_API = APIFOX_BASE_URL + "/api/v1"
 APIFOX_API_VERSION = "2024-03-28"
 
 # ============================================================
